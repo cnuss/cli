@@ -1,11 +1,9 @@
 /* eslint-disable no-console */
 import {flags} from '@oclif/command'
-import {cosmiconfigSync} from 'cosmiconfig'
-// import axios from 'axios'
-import CloudGraph, {Opts} from 'cloud-graph-sdk'
+import {Opts} from 'cloud-graph-sdk'
 
 import Command from './base'
-import manager from '../manager'
+import {printWelcomeMessage} from '../utils'
 
 const fs = require('fs')
 const path = require('path')
@@ -25,6 +23,8 @@ Hi from AutoCloud! Lets setup your config
     ...Command.flags,
     // select resources flag
     resources: flags.boolean({char: 'r'}),
+    // dgraph host
+    dgraph: flags.string({char: 'd'}),
   };
 
   static strict = false;
@@ -60,6 +60,7 @@ Hi from AutoCloud! Lets setup your config
     } = this.parse(Init)
     const result: {[key: string]: string} = {}
     const {enums: {regions, services}} = plugin
+    // Only query for regions if this provider has a list of them
     if (regions) {
       const answers = await this.interface.prompt([
         {
@@ -76,6 +77,7 @@ Hi from AutoCloud! Lets setup your config
       result.regions = answers.regions.join(',')
       // eslint-disable-next-line max-depth
     }
+    // Only query for resorces if the flag is set, otherwise take them all.
     if (resources) {
       const answers = await this.interface.prompt([
         {
@@ -106,7 +108,32 @@ Hi from AutoCloud! Lets setup your config
     return result
   }
 
+  async getCloudGraphConfig() {
+    const {
+      flags: {dgraph},
+    } = this.parse(Init)
+    const result: {[key: string]: any} = {}
+    if (dgraph) {
+      result.dgraphHost = dgraph
+    } else {
+      const {dgraph} = await this.interface.prompt([
+        // TODO: validate url
+        {
+          type: 'input',
+          message: 'Enter your dgraph host url (or launch dgraph with "cloud-graph launch")',
+          name: 'dgraph',
+          default: 'http://localhost:8080',
+        },
+      ])
+      result.dgraphHost = dgraph
+    }
+    return result
+  }
+
   async run() {
+    if (!this.getCGConfig()) {
+      printWelcomeMessage()
+    }
     const {
       argv,
       flags: {debug, dev: devMode},
@@ -167,6 +194,7 @@ Hi from AutoCloud! Lets setup your config
         }
       } else {
         configResult[provider] = await this.getNewProviderConfig(plugin)
+        configResult.cloudGraph = await this.getCloudGraphConfig()
       }
     }
     fs.writeFileSync(

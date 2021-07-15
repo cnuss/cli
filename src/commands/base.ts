@@ -36,7 +36,6 @@ export default abstract class BaseCommand extends Command {
 
   async getProviderPlugin(provider: string, opts: Opts) {
     try {
-      this.logger.log('we are here')
       const plugin = await manager.getProviderPlugin(provider, opts)
       return plugin
     } catch (error: any) {

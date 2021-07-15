@@ -1,15 +1,16 @@
 /* eslint-disable no-console */
+import {flags} from '@oclif/command'
 import axios from 'axios'
-import {cosmiconfigSync} from 'cosmiconfig'
-import CloudGraph, {Opts} from 'cloud-graph-sdk'
+import {Opts} from 'cloud-graph-sdk'
 
 import Command from './base'
-import {getKeyByValue, fileUtils} from '../utils'
-// const readline = require('readline')
+import {fileUtils, getConnectedEntity} from '../utils'
+
+const chalk = require('chalk')
 const fs = require('fs')
 const path = require('path')
-const ora = require('ora')
 
+const dataDir = 'cg-data'
 export default class Scan extends Command {
   static description = 'Scan provider data based on your config';
 
@@ -21,12 +22,32 @@ Lets scan your AWS resources!
 
   static strict = false;
 
-  static flags = Command.flags
+  static flags = {
+    ...Command.flags,
+    // select resources flag
+    dgraph: flags.string({char: 'd'}),
+  };
 
   static args = Command.args
 
+  getDgraphHost() {
+    const {flags: {dgraph: dgraphHost}} = this.parse(Scan)
+    if (dgraphHost) {
+      return dgraphHost
+    }
+    if (process.env.DGRAPH_HOST) {
+      return process.env.DGRAPH_HOST
+    }
+    const config = this.getCGConfig('cloudGraph')
+    if (config && config.dgraphHost) {
+      return config.dgraphHost
+    }
+    return 'http://localhost:8080'
+  }
+
   async run() {
     const {argv, flags: {debug, dev: devMode}} = this.parse(Scan)
+    const dgraphHost = this.getDgraphHost()
     const opts: Opts = {logger: this.logger, debug, devMode}
     // this.exit()
     // const provider = args.provider
@@ -45,7 +66,7 @@ Lets scan your AWS resources!
     } else {
       this.logger.log('Scanning for providers found in config')
       const config = this.getCGConfig()
-      allProviers = Object.keys(config)
+      allProviers = Object.keys(config).filter((val: string) => val !== 'cloudGraph')
       if (allProviers.length === 0) {
         this.logger.log(
           'Error, there are no providers configured and none were passed to scan'
@@ -68,13 +89,31 @@ Lets scan your AWS resources!
       const {
         getGraphqlSchema,
       } = plugin
-      const schema = []
       const providerSchema: any[] = getGraphqlSchema(opts)
       schema.push(...providerSchema)
       fileUtils.writeGraphqlSchemaToFile(providerSchema, provider)
     }
     // Write combined schemas to Dgraph
     fileUtils.writeGraphqlSchemaToFile(schema)
+
+    // Push schema to dgraph
+    await axios({
+      url: `${dgraphHost}/admin`,
+      method: 'post',
+      data: {
+        query: `mutation($schema: String!) {
+            updateGQLSchema(input: { set: { schema: $schema } }) {
+              gqlSchema {
+                schema
+              }
+            }
+          }
+          `,
+        variables: {
+          schema: schema,
+        },
+      },
+    })
     for (const provider of allProviers) {
       this.logger.log(`Beginning SCAN for ${provider}`)
       const plugin = await this.getProviderPlugin(provider, opts)
@@ -89,17 +128,10 @@ Lets scan your AWS resources!
         enums,
       } = plugin
 
-      const configSearcher = cosmiconfigSync('cloud-graph')
-      const config = configSearcher.search()
-      let providerConfig
-      if (config) {
-        providerConfig = config.config[provider]
-      } else {
-        // TODO: handle ALL logic for crawling everything
-        providerConfig = {
-          regions: enums.regions.join(','),
-          resources: enums.services.join(','),
-        }
+      const config = this.getCGConfig(provider)
+      const providerConfig = config ? config : {
+        regions: enums.regions.join(','),
+        resources: enums.services.join(','),
       }
       const creds: any = await getProviderCredentials(opts)
       const {accountId} = await getProviderIdentity({credentials: creds, opts})
@@ -129,33 +161,6 @@ Lets scan your AWS resources!
       // we have kmsRawData (what comes from the sdk and possible gets type from here) KmsKey
       // is there a good valid reason to have "middle layer". other option is take raw data, build connections from that in another data obj, formats the non-connection keys from the type, make connections to build our schema types (KMSKey)
 
-      /**
-       * Combine all sub graphql schemas into one
-       */
-      // const typesArray = loadFilesSync(path.join(__dirname, '../../../../api/services'), {recursive: true, extensions: ['graphql']})
-
-      /**
-       * Write combined schema to file and then update dgraph to serve combined schema
-       */
-      // fs.writeFileSync(path.join(__dirname, '../../schema.graphql'), schema)
-      // const ret = await axios({
-      //   url: 'http://localhost:8080/admin',
-      //   method: 'post',
-      //   data: {
-      //     query: `mutation($schema: String!) {
-      //       updateGQLSchema(input: { set: { schema: $schema } }) {
-      //         gqlSchema {
-      //           schema
-      //         }
-      //       }
-      //     }
-      //     `,
-      //     variables: {
-      //       schema: schema,
-      //     },
-      //   },
-      // })
-      // console.log(JSON.stringify(ret.data))
       const allTagData: any[] = []
       const result: { entities: { name: any; data: any }[]; connections: any } =
         {
@@ -198,12 +203,11 @@ Lets scan your AWS resources!
         result.entities.push({name: serviceData.name, data: entities})
       }
       // TODO: if we are scanning multi providers, do we want to save as one giant file?
-      const dir = 'cg-data'
-      fileUtils.makeDirIfNotExists(dir)
+      fileUtils.makeDirIfNotExists(dataDir)
       fs.writeFileSync(
         path.join(
           process.cwd(),
-          `${dir}/${provider}_${accountId}_${Date.now()}.json`
+          `${dataDir}/${provider}_${accountId}_${Date.now()}.json`
         ),
         JSON.stringify(result, null, 2)
       )
@@ -218,40 +222,10 @@ Lets scan your AWS resources!
       for (const entity of result.entities) {
         const {name, data} = entity
         const {mutation} = serviceFactory(name)
-        const connectedData = data.map((service: any) => {
-          console.log(`connecting service: ${name}`)
-          console.log(`service id is: ${service.id}`)
-          const connections = result.connections[service.id]
-          const connectedEntity = {
-            ...service,
-          }
-          if (connections) {
-            for (const connection of connections) {
-              console.log(
-                `searching for ${connection.resourceType} entity data to make connection between ${name} && ${connection.resourceType}`
-              )
-              const entityData = result.entities.find(
-                ({name}) => name === connection.resourceType
-              )
-              if (entityData && entityData.data) {
-                // console.log('found entities for connection')
-                // console.log(entityData)
-                const entityForConnection = entityData.data.find(
-                  ({id}: { id: string }) => connection.id === id
-                )
-                // console.log('found connection entity')
-                // console.log(entityForConnection)
-                console.log(connection)
-                connectedEntity[connection.field] = entityForConnection
-                // console.log(connectedEntity)
-              }
-            }
-          }
-          return connectedEntity
-        })
+        const connectedData = data.map((service: any) => getConnectedEntity(service, result, opts))
         console.log(connectedData)
         // const reqPromise = axios({
-        //   url: 'http://localhost:8080/graphql',
+        //   url: `${dgraphHost}/graphql`,
         //   method: 'post',
         //   data: {
         //     query: mutation,
@@ -267,26 +241,8 @@ Lets scan your AWS resources!
       }
       // await Promise.all(promises)
     }
-    // const ret = await axios({
-    //   url: 'http://localhost:8080/admin',
-    //   method: 'post',
-    //   data: {
-    //     query: `mutation($schema: String!) {
-    //         updateGQLSchema(input: { set: { schema: $schema } }) {
-    //           gqlSchema {
-    //             schema
-    //           }
-    //         }
-    //       }
-    //       `,
-    //     variables: {
-    //       schema: schema,
-    //     },
-    //   },
-    // })
-    // console.log(ret)
     await Promise.all(promises)
-    // TODO: what to do after loading data and before exiting? show url or something?
+    this.logger.log(`Your data for ${allProviers.join(' | ')} is now being served at ${chalk.underline.green(dgraphHost)}`, {level: 'success'})
     this.exit()
     // console.log(JSON.stringify(result.connections))
     // console.log(JSON.stringify(res.data))

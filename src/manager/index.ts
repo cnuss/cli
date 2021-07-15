@@ -20,23 +20,20 @@ export class Manager {
     /**
      * Determine if the user has passed a provider and prompt them if not
      */
-    const checkSpinner = ora(`Checking for ${provider} module...`).start()
     let plugin
     if (this.plugins[provider]) {
-      checkSpinner.succeed(`${provider} module check complete`)
       return this.plugins[provider]
     }
+    const checkSpinner = ora(`Checking for ${provider} module...`).start()
     try {
       if (process.env.NODE_ENV === 'development' || devMode) {
         // TODO: this install doesnt work if it has a yalc-d package in it, how to resolve?
         // await this.manager.installFromPath(path.join(__dirname, `../../.yalc/${provider}-provider-plugin`), {force: true})
         // plugin = this.manager.require(`${provider}-provider-plugin`)
         // TODO: talk with live-plugin-manager maintainer on why above doesnt work but below does??
-        plugin = await import(path.join(__dirname, `../../.yalc/cg-${provider}-provider`))
+        plugin = await import(`cg-${provider}-provider`)
       } else {
         const installOra = ora(`Installing ${provider} plugin`).start()
-        // const exec = require('child_process').exec
-        // await exec(`yalc add ${provider}-provider-plugin`)
         await this.manager.install(`cg-${provider}-provider`)
         installOra.succeed(`${provider} plugin installed successfully!`)
         plugin = this.manager.require(`cg-${provider}-provider`)

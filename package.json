@@ -13,13 +13,15 @@
     "@oclif/config": "^1",
     "@oclif/plugin-help": "^3",
     "axios": "^0.21.1",
-    "cg-aws-provider": "file:.yalc/cg-aws-provider",
-    "cloud-graph-sdk": "file:.yalc/cloud-graph-sdk",
+    "boxen": "^5.0.1",
+    "cfonts": "^2.9.3",
+    "chalk": "^4.1.1",
     "cosmiconfig": "^7.0.0",
     "glob": "^7.1.7",
     "inquirer": "^8.1.1",
     "live-plugin-manager": "^0.15.1",
     "ora": "^5.4.1",
+    "terminal-image": "1.2.0",
     "tslib": "^1"
   },
   "devDependencies": {
@@ -41,7 +43,7 @@
     "typescript": "^3.3"
   },
   "engines": {
-    "node": ">=8.0.0"
+    "node": ">=14.0.0"
   },
   "files": [
     "/bin",
