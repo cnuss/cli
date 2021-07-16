@@ -78,12 +78,16 @@ Lets scan your AWS resources!
     const schema: any[] = []
     for (const provider of allProviers) {
       this.logger.log(`uploading Schema for ${provider}`)
-      const plugin = await this.getProviderPlugin(provider, opts)
+      const client = await this.getProviderClient(provider)
       // console.log(config)
       const {
-        getGraphqlSchema,
-      } = plugin
-      const providerSchema: any[] = getGraphqlSchema(opts)
+        getSchema,
+      } = client
+      const providerSchema: any[] = getSchema(opts)
+      if (!providerSchema) {
+        this.logger.log(`No schema found for ${provider}, moving on`)
+        continue
+      }
       schema.push(...providerSchema)
       fileUtils.writeGraphqlSchemaToFile(providerSchema, provider)
     }
@@ -112,6 +116,7 @@ Lets scan your AWS resources!
       this.logger.log(ret.data, {verbose: true})
     } catch (error: any) {
       this.logger.log(error, {level: 'error'})
+      this.exit()
     }
     /**
      * loop through providers and attempt to scan each of them
@@ -119,14 +124,14 @@ Lets scan your AWS resources!
     const promises: Promise<any>[] = []
     for (const provider of allProviers) {
       this.logger.log(`Beginning LOAD for ${provider}`)
-      const plugin = await this.getProviderPlugin(provider, opts)
-      if (!plugin) {
+      const client = await this.getProviderClient(provider)
+      if (!client) {
         continue
       }
       // console.log(config)
       const {
-        serviceFactory,
-      } = plugin
+        getService,
+      } = client
 
       const allTagData: any[] = []
       let files
@@ -170,7 +175,7 @@ Lets scan your AWS resources!
        */
       for (const entity of result.entities) {
         const {name, data} = entity
-        const {mutation} = serviceFactory(name)
+        const {mutation} = getService(name)
         this.logger.log(`connecting service: ${name}`)
         const connectedData = data.map((service: any) => getConnectedEntity(service, result, opts))
         this.logger.log(connectedData, {verbose: true})

@@ -5,18 +5,24 @@ const ora = require('ora')
 const path = require('path')
 
 export class Manager {
-  constructor() {
-    this.manager = new PluginManager({
+  constructor(config: any) {
+    this.pluginManager = new PluginManager({
       pluginsPath: './src/plugins',
     })
     this.plugins = {}
+    this.logger = config.logger
+    this.devMode = config.devMode
   }
 
   plugins: Record<string, any>
 
-  manager
+  logger: any
 
-  async getProviderPlugin(provider: string, {debug, devMode, logger}: Opts) {
+  pluginManager: any
+
+  devMode: boolean
+
+  async getProviderPlugin(provider: string) {
     /**
      * Determine if the user has passed a provider and prompt them if not
      */
@@ -26,7 +32,7 @@ export class Manager {
     }
     const checkSpinner = ora(`Checking for ${provider} module...`).start()
     try {
-      if (process.env.NODE_ENV === 'development' || devMode) {
+      if (process.env.NODE_ENV === 'development' || this.devMode) {
         // TODO: this install doesnt work if it has a yalc-d package in it, how to resolve?
         // await this.manager.installFromPath(path.join(__dirname, `../../.yalc/${provider}-provider-plugin`), {force: true})
         // plugin = this.manager.require(`${provider}-provider-plugin`)
@@ -34,12 +40,12 @@ export class Manager {
         plugin = await import(`cg-${provider}-provider`)
       } else {
         const installOra = ora(`Installing ${provider} plugin`).start()
-        await this.manager.install(`cg-${provider}-provider`)
+        await this.pluginManager.install(`cg-${provider}-provider`)
         installOra.succeed(`${provider} plugin installed successfully!`)
-        plugin = this.manager.require(`cg-${provider}-provider`)
+        plugin = this.pluginManager.require(`cg-${provider}-provider`)
       }
     } catch (error: any) {
-      logger.log(error, {level: 'error'})
+      this.logger.log(error, {level: 'error'})
       checkSpinner.fail(`Manager failed to install plugin for ${provider}`)
       throw new Error('FAILED to find plugin!!')
     }
@@ -49,4 +55,4 @@ export class Manager {
   }
 }
 
-export default new Manager()
+export default Manager

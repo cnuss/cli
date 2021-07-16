@@ -54,12 +54,12 @@ Hi from AutoCloud! Lets setup your config
     })
   }
 
-  async getNewProviderConfig(plugin: any): Promise<{[key: string]: string}> {
+  async getNewProviderConfig(provider: string): Promise<{[key: string]: string}> {
     const {
       flags: {resources},
     } = this.parse(Init)
     const result: {[key: string]: string} = {}
-    const {enums: {regions, services}} = plugin
+    const {properties: {regions, services}} = await this.getProviderClient(provider)
     // Only query for regions if this provider has a list of them
     if (regions) {
       const answers = await this.interface.prompt([
@@ -155,8 +155,8 @@ Hi from AutoCloud! Lets setup your config
       /**
        * First install and require the provider plugin
        */
-      const plugin = await this.getProviderPlugin(provider, opts)
-      if (!plugin) {
+      const client = await this.getProviderClient(provider)
+      if (!client) {
         this.logger.log(`There was an issue initializing ${provider} plugin, skipping...`)
         continue
       }
@@ -187,13 +187,13 @@ Hi from AutoCloud! Lets setup your config
         ])
         this.logger.log(answers, {verbose: true})
         if (answers.overwrite) {
-          configResult[provider] = await this.getNewProviderConfig(plugin)
+          configResult[provider] = await this.getNewProviderConfig(provider)
         } else {
           this.logger.log(`Init command for ${provider} aborted`)
           this.exit()
         }
       } else {
-        configResult[provider] = await this.getNewProviderConfig(plugin)
+        configResult[provider] = await this.getNewProviderConfig()
         configResult.cloudGraph = await this.getCloudGraphConfig()
       }
     }

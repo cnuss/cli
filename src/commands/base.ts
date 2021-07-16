@@ -2,7 +2,7 @@ import Command, {flags} from '@oclif/command'
 import {Input} from '@oclif/parser';
 import CloudGraph, {Opts} from 'cloud-graph-sdk'
 import {cosmiconfigSync} from 'cosmiconfig'
-import manager from '../manager'
+import Manager from '../manager'
 
 const inquirer = require('inquirer')
 
@@ -10,12 +10,17 @@ export default abstract class BaseCommand extends Command {
   constructor(argv: any, config: any) {
     super(argv, config)
     this.logger
+    this.providers
   }
 
   interface = inquirer
 
   // TODO: update with logger type from sdk
   logger: any
+
+  manager: any
+
+  providers: {[key: string]: any} = {}
 
   static flags = {
     // debug flag
@@ -34,12 +39,24 @@ export default abstract class BaseCommand extends Command {
     this.logger = new CloudGraph.Logger(debug)
   }
 
-  async getProviderPlugin(provider: string, opts: Opts) {
+  async getProviderClient(provider: string) {
+    const {flags: {dev: devMode}} = this.parse(this.constructor as Input<{debug: boolean; dev: boolean}>)
     try {
-      const plugin = await manager.getProviderPlugin(provider, opts)
-      return plugin
+      if (!this.manager) {
+        this.manager = new Manager({logger: this.logger, devMode})
+      }
+      if (this.providers[provider]) {
+        return this.providers[provider]
+      }
+      const {default: Client} = await this.manager.getProviderPlugin(provider)
+      const client = new Client({
+        logger: this.logger,
+        provider: this.getCGConfig(provider),
+      })
+      this.providers[provider] = client
+      return client
     } catch (error: any) {
-      this.logger.log(error, {level: 'error', verbose: true})
+      this.logger.log(error, {level: 'error'})
       this.logger.log(
         `There was an error installing or requiring a plugin for ${provider}, does one exist?`,
         {level: 'error'}

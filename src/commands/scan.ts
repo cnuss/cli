@@ -84,12 +84,12 @@ Lets scan your AWS resources!
     // TODO: how to not loop through providers twice
     for (const provider of allProviers) {
       this.logger.log(`uploading Schema for ${provider}`)
-      const plugin = await this.getProviderPlugin(provider, opts)
+      const client = await this.getProviderClient(provider)
       // console.log(config)
       const {
-        getGraphqlSchema,
-      } = plugin
-      const providerSchema: any[] = getGraphqlSchema(opts)
+        getSchema,
+      } = client
+      const providerSchema: any[] = getSchema(opts)
       schema.push(...providerSchema)
       fileUtils.writeGraphqlSchemaToFile(providerSchema, provider)
     }
@@ -97,46 +97,45 @@ Lets scan your AWS resources!
     fileUtils.writeGraphqlSchemaToFile(schema)
 
     // Push schema to dgraph
-    await axios({
-      url: `${dgraphHost}/admin`,
-      method: 'post',
-      data: {
-        query: `mutation($schema: String!) {
-            updateGQLSchema(input: { set: { schema: $schema } }) {
-              gqlSchema {
-                schema
-              }
-            }
-          }
-          `,
-        variables: {
-          schema: schema,
-        },
-      },
-    })
+    // await axios({
+    //   url: `${dgraphHost}/admin`,
+    //   method: 'post',
+    //   data: {
+    //     query: `mutation($schema: String!) {
+    //         updateGQLSchema(input: { set: { schema: $schema } }) {
+    //           gqlSchema {
+    //             schema
+    //           }
+    //         }
+    //       }
+    //       `,
+    //     variables: {
+    //       schema: schema,
+    //     },
+    //   },
+    // })
     for (const provider of allProviers) {
       this.logger.log(`Beginning SCAN for ${provider}`)
-      const plugin = await this.getProviderPlugin(provider, opts)
-      if (!plugin) {
+      const client = await this.getProviderClient(provider)
+      if (!client) {
         continue
       }
       const {
-        getProviderCredentials,
-        serviceFactory,
-        getProviderIdentity,
-        getProviderData,
-        enums,
-      } = plugin
-
+        getCredentials,
+        getService,
+        getIdentity,
+        getData,
+        properties,
+      } = client
       const config = this.getCGConfig(provider)
       const providerConfig = config ? config : {
-        regions: enums.regions.join(','),
-        resources: enums.services.join(','),
+        regions: properties.regions.join(','),
+        resources: Object.values(properties.services).join(','),
       }
-      const creds: any = await getProviderCredentials(opts)
-      const {accountId} = await getProviderIdentity({credentials: creds, opts})
+      const creds: any = await getCredentials(opts)
+      const {accountId} = await getIdentity({credentials: creds, opts})
       this.logger.log(providerConfig)
-      const providerData = await getProviderData({
+      const providerData = await getData({
         regions: providerConfig.regions,
         resources: providerConfig.resources,
         credentials: creds,
@@ -175,7 +174,7 @@ Lets scan your AWS resources!
        * 4. push the array of formatted entities into result.entites
        */
       for (const serviceData of providerData) {
-        const serviceClass = serviceFactory(serviceData.name)
+        const serviceClass = getService(serviceData.name)
         // console.log(serviceClass)
         // TODO: change to a loop through region names
         const data = serviceData.data['us-east-1']
@@ -221,7 +220,7 @@ Lets scan your AWS resources!
        */
       for (const entity of result.entities) {
         const {name, data} = entity
-        const {mutation} = serviceFactory(name)
+        const {mutation} = getService(name)
         const connectedData = data.map((service: any) => getConnectedEntity(service, result, opts))
         console.log(connectedData)
         // const reqPromise = axios({
