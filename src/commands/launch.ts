@@ -38,9 +38,10 @@ Lets scan your AWS resources!
     })
   }
 
+  // TODO: convert this func to handle any storage provider
   async run() {
     const {flags: {debug, dev: devMode}} = this.parse(Launch)
-    const dgraphHost = this.getDgraphHost()
+    const dgraphHost = this.getHost()
     // TODO: not a huge fan of this pattern, rework how to do debug and devmode tasks (specifically how to use in providers)
     const opts: Opts = {logger: this.logger, debug, devMode}
     const dockerCheck = ora('checking for Docker').start()

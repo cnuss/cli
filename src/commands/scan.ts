@@ -30,12 +30,14 @@ Lets scan your AWS resources!
 
   async run() {
     const {argv, flags: {debug, dev: devMode}} = this.parse(Scan)
-    const dgraphHost = this.getDgraphHost()
+    // const dgraphHost = this.getDgraphHost()
     const opts: Opts = {logger: this.logger, debug, devMode}
     let allProviers = argv
 
     // Run dgraph health check
-    const dgraphRunning = await this.dgraphHealthCheck()
+    const storageRunning = await this.storageEngine.healthCheck()
+    console.log('STORAGE RUNNING CHECK')
+    console.log(storageRunning)
     /**
      * Handle 2 methods of scanning, either for explicitly passed providers OR
      * try to scan for all providers found within the config file
@@ -77,28 +79,12 @@ Lets scan your AWS resources!
     fileUtils.writeGraphqlSchemaToFile(schema)
 
     // Push schema to dgraph if dgraph is running
-    if (dgraphRunning) {
+    if (storageRunning) {
       try {
-        await axios({
-          url: `${dgraphHost}/admin`,
-          method: 'post',
-          data: {
-            query: `mutation($schema: String!) {
-                updateGQLSchema(input: { set: { schema: $schema } }) {
-                  gqlSchema {
-                    schema
-                  }
-                }
-              }
-              `,
-            variables: {
-              schema: schema.join(),
-            },
-          },
-        })
+        await this.storageEngine.setSchema(schema)
       } catch (error: any) {
         this.logger.log(error, {verbose: true, level: error})
-        this.logger.log(`There was an issue pushing schema for providers: ${allProviers.join(' | ')} to dgraph at ${dgraphHost}`, {level: 'error'})
+        this.logger.log(`There was an issue pushing schema for providers: ${allProviers.join(' | ')} to dgraph at ${this.storageEngine.host}`, {level: 'error'})
         this.exit()
       }
     }
@@ -211,29 +197,19 @@ Lets scan your AWS resources!
         const {mutation} = getService(name)
         const connectedData = data.map((service: any) => getConnectedEntity(service, result, opts))
         console.log(connectedData)
-        if (dgraphRunning) {
-          const axiosPromise = axios({
-            url: `${dgraphHost}/graphql`,
-            method: 'post',
-            data: {
-              query: mutation,
-              variables: {
-                input: connectedData,
-              },
+        if (storageRunning) {
+          const axiosPromise = this.storageEngine.push({
+            query: mutation,
+            variables: {
+              input: connectedData,
             },
-          }).then(res => {
-            if (res.data) {
-              this.logger.log(res.data)
-            }
           })
           promises.push(axiosPromise)
         }
       }
     }
     await Promise.all(promises)
-    this.logger.log(`Your data for ${allProviers.join(' | ')} is now being served at ${chalk.underline.green(dgraphHost)}`, {level: 'success'})
+    this.logger.log(`Your data for ${allProviers.join(' | ')} is now being served at ${chalk.underline.green(this.storageEngine.host)}`, {level: 'success'})
     this.exit()
-    // console.log(JSON.stringify(result.connections))
-    // console.log(JSON.stringify(res.data))
   }
 }

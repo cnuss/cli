@@ -27,26 +27,10 @@ Lets scan your AWS resources!
 
   static args = Command.args
 
-  getDgraphHost() {
-    const {flags: {dgraph: dgraphHost}} = this.parse(Load)
-    if (dgraphHost) {
-      return dgraphHost
-    }
-    if (process.env.DGRAPH_HOST) {
-      return process.env.DGRAPH_HOST
-    }
-    const config = this.getCGConfig('cloudGraph')
-    if (config && config.dgraphHost) {
-      return config.dgraphHost
-    }
-    return 'http://localhost:8080'
-  }
-
   async run() {
     const {argv, flags: {debug, dev: devMode}} = this.parse(Load)
-    // TODO: not a huge fan of this pattern, rework how to do debug and devmode tasks (specifically how to use in providers)
-    const dgraphHost = this.getDgraphHost()
-    const dgraphRunning = await this.dgraphHealthCheck()
+    // TODO: everything can exit if storage isnt running here, we are just loading
+    const storageRunning = await this.storageEngine.healthCheck()
     const opts: Opts = {logger: this.logger, debug, devMode}
     let allProviers = argv
     this.logger.log(allProviers)
@@ -94,29 +78,12 @@ Lets scan your AWS resources!
     fileUtils.writeGraphqlSchemaToFile(schema)
 
     // Push schema to dgraph if dgraph is running
-    if (dgraphRunning) {
+    if (storageRunning) {
       try {
-        const ret = await axios({
-          url: `${dgraphHost}/admin`,
-          method: 'post',
-          data: {
-            query: `mutation($schema: String!) {
-                updateGQLSchema(input: { set: { schema: $schema } }) {
-                  gqlSchema {
-                    schema
-                  }
-                }
-              }
-              `,
-            variables: {
-              schema: schema.join(),
-            },
-          },
-        })
-        this.logger.log(ret.data, {verbose: true})
+        this.storageEngine.setSchema(schema)
       } catch (error: any) {
         this.logger.log(error, {verbose: true, level: error})
-        this.logger.log(`There was an issue pushing schema for providers: ${allProviers.join(' | ')} to dgraph at ${dgraphHost}`, {level: 'error'})
+        this.logger.log(`There was an issue pushing schema for providers: ${allProviers.join(' | ')} to dgraph at ${this.storageEngine.host}`, {level: 'error'})
       }
     }
     /**
@@ -129,7 +96,6 @@ Lets scan your AWS resources!
       if (!client) {
         continue
       }
-      // console.log(config)
       const {
         getService,
       } = client
@@ -180,25 +146,19 @@ Lets scan your AWS resources!
         this.logger.log(`connecting service: ${name}`)
         const connectedData = data.map((service: any) => getConnectedEntity(service, result, opts))
         this.logger.log(connectedData, {verbose: true})
-        if (dgraphRunning) {
-          const reqPromise = axios({
-            url: `${dgraphHost}/graphql`,
-            method: 'post',
-            data: {
-              query: mutation,
-              variables: {
-                input: connectedData,
-              },
+        if (storageRunning) {
+          const axoisPromise = this.storageEngine.push({
+            query: mutation,
+            variables: {
+              input: connectedData,
             },
-          }).then(res => {
-            this.logger.log(JSON.stringify(res.data), {verbose: true})
           })
-          promises.push(reqPromise)
+          promises.push(axoisPromise)
         }
       }
     }
     await Promise.all(promises)
-    this.logger.log(`Your data for ${allProviers.join(' | ')} is now being served at ${chalk.underline.green(dgraphHost)}`, {level: 'success'})
+    this.logger.log(`Your data for ${allProviers.join(' | ')} is now being served at ${chalk.underline.green(this.storageEngine.host)}`, {level: 'success'})
     this.exit()
   }
 }

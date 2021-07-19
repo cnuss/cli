@@ -23,8 +23,6 @@ Hi from AutoCloud! Lets setup your config
     ...Command.flags,
     // select resources flag
     resources: flags.boolean({char: 'r'}),
-    // dgraph host
-    dgraph: flags.string({char: 'd'}),
   };
 
   static strict = false;
