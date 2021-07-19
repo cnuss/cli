@@ -23,8 +23,6 @@ Lets scan your AWS resources!
 
   static flags = {
     ...Command.flags,
-    // TODO: move this flag to base? discuss use further
-    dgraph: flags.string({char: 'd'}),
   };
 
   static args = Command.args
@@ -40,24 +38,9 @@ Lets scan your AWS resources!
     })
   }
 
-  getDgraphHost() {
-    const {flags: {dgraph: dgraphHost}} = this.parse(Launch)
-    if (dgraphHost) {
-      return dgraphHost
-    }
-    if (process.env.DGRAPH_HOST) {
-      return process.env.DGRAPH_HOST
-    }
-    const config = this.getCGConfig('cloudGraph')
-    if (config && config.dgraphHost) {
-      return config.dgraphHost
-    }
-    return 'http://localhost:8080'
-  }
-
   async run() {
-    const {flags: {debug, dev: devMode, dgraph: dgraphHost = 'http://localhost:8080'}} = this.parse(Launch)
-
+    const {flags: {debug, dev: devMode}} = this.parse(Launch)
+    const dgraphHost = this.getDgraphHost()
     // TODO: not a huge fan of this pattern, rework how to do debug and devmode tasks (specifically how to use in providers)
     const opts: Opts = {logger: this.logger, debug, devMode}
     const dockerCheck = ora('checking for Docker').start()

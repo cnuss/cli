@@ -23,8 +23,6 @@ Lets scan your AWS resources!
 
   static flags = {
     ...Command.flags,
-    // TODO: move this flag to base? discuss use further
-    dgraph: flags.string({char: 'd'}),
   };
 
   static args = Command.args
@@ -48,6 +46,7 @@ Lets scan your AWS resources!
     const {argv, flags: {debug, dev: devMode}} = this.parse(Load)
     // TODO: not a huge fan of this pattern, rework how to do debug and devmode tasks (specifically how to use in providers)
     const dgraphHost = this.getDgraphHost()
+    const dgraphRunning = await this.dgraphHealthCheck()
     const opts: Opts = {logger: this.logger, debug, devMode}
     let allProviers = argv
     this.logger.log(allProviers)
@@ -94,29 +93,31 @@ Lets scan your AWS resources!
     // Write combined schemas to Dgraph
     fileUtils.writeGraphqlSchemaToFile(schema)
 
-    // Push schema to dgraph
-    try {
-      const ret = await axios({
-        url: `${dgraphHost}/admin`,
-        method: 'post',
-        data: {
-          query: `mutation($schema: String!) {
-              updateGQLSchema(input: { set: { schema: $schema } }) {
-                gqlSchema {
-                  schema
+    // Push schema to dgraph if dgraph is running
+    if (dgraphRunning) {
+      try {
+        const ret = await axios({
+          url: `${dgraphHost}/admin`,
+          method: 'post',
+          data: {
+            query: `mutation($schema: String!) {
+                updateGQLSchema(input: { set: { schema: $schema } }) {
+                  gqlSchema {
+                    schema
+                  }
                 }
               }
-            }
-            `,
-          variables: {
-            schema: schema.join(),
+              `,
+            variables: {
+              schema: schema.join(),
+            },
           },
-        },
-      })
-      this.logger.log(ret.data, {verbose: true})
-    } catch (error: any) {
-      this.logger.log(error, {level: 'error'})
-      this.exit()
+        })
+        this.logger.log(ret.data, {verbose: true})
+      } catch (error: any) {
+        this.logger.log(error, {verbose: true, level: error})
+        this.logger.log(`There was an issue pushing schema for providers: ${allProviers.join(' | ')} to dgraph at ${dgraphHost}`, {level: 'error'})
+      }
     }
     /**
      * loop through providers and attempt to scan each of them
@@ -146,7 +147,7 @@ Lets scan your AWS resources!
         const answer = await this.interface.prompt([
           {
             type: 'checkbox',
-            message: 'Select scan version to load',
+            message: `Select ${provider} version to load into dgraph`,
             loop: false,
             name: 'file',
             choices: files.map(({name: file}: {name: string}) => fileUtils.mapFileNameToHumanReadable(file)),
@@ -179,19 +180,21 @@ Lets scan your AWS resources!
         this.logger.log(`connecting service: ${name}`)
         const connectedData = data.map((service: any) => getConnectedEntity(service, result, opts))
         this.logger.log(connectedData, {verbose: true})
-        const reqPromise = axios({
-          url: `${dgraphHost}/graphql`,
-          method: 'post',
-          data: {
-            query: mutation,
-            variables: {
-              input: connectedData,
+        if (dgraphRunning) {
+          const reqPromise = axios({
+            url: `${dgraphHost}/graphql`,
+            method: 'post',
+            data: {
+              query: mutation,
+              variables: {
+                input: connectedData,
+              },
             },
-          },
-        }).then(res => {
-          this.logger.log(JSON.stringify(res.data), {verbose: true})
-        })
-        promises.push(reqPromise)
+          }).then(res => {
+            this.logger.log(JSON.stringify(res.data), {verbose: true})
+          })
+          promises.push(reqPromise)
+        }
       }
     }
     await Promise.all(promises)

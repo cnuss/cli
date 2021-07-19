@@ -193,7 +193,7 @@ Hi from AutoCloud! Lets setup your config
           this.exit()
         }
       } else {
-        configResult[provider] = await this.getNewProviderConfig()
+        configResult[provider] = await this.getNewProviderConfig(provider)
         configResult.cloudGraph = await this.getCloudGraphConfig()
       }
     }

@@ -24,38 +24,18 @@ Lets scan your AWS resources!
 
   static flags = {
     ...Command.flags,
-    // select resources flag
-    dgraph: flags.string({char: 'd'}),
   };
 
   static args = Command.args
-
-  getDgraphHost() {
-    const {flags: {dgraph: dgraphHost}} = this.parse(Scan)
-    if (dgraphHost) {
-      return dgraphHost
-    }
-    if (process.env.DGRAPH_HOST) {
-      return process.env.DGRAPH_HOST
-    }
-    const config = this.getCGConfig('cloudGraph')
-    if (config && config.dgraphHost) {
-      return config.dgraphHost
-    }
-    return 'http://localhost:8080'
-  }
 
   async run() {
     const {argv, flags: {debug, dev: devMode}} = this.parse(Scan)
     const dgraphHost = this.getDgraphHost()
     const opts: Opts = {logger: this.logger, debug, devMode}
-    // this.exit()
-    // const provider = args.provider
     let allProviers = argv
-    // if (!provider) {
-    //   provider = await this.getProvider()
-    // }
 
+    // Run dgraph health check
+    const dgraphRunning = await this.dgraphHealthCheck()
     /**
      * Handle 2 methods of scanning, either for explicitly passed providers OR
      * try to scan for all providers found within the config file
@@ -96,24 +76,32 @@ Lets scan your AWS resources!
     // Write combined schemas to Dgraph
     fileUtils.writeGraphqlSchemaToFile(schema)
 
-    // Push schema to dgraph
-    // await axios({
-    //   url: `${dgraphHost}/admin`,
-    //   method: 'post',
-    //   data: {
-    //     query: `mutation($schema: String!) {
-    //         updateGQLSchema(input: { set: { schema: $schema } }) {
-    //           gqlSchema {
-    //             schema
-    //           }
-    //         }
-    //       }
-    //       `,
-    //     variables: {
-    //       schema: schema,
-    //     },
-    //   },
-    // })
+    // Push schema to dgraph if dgraph is running
+    if (dgraphRunning) {
+      try {
+        await axios({
+          url: `${dgraphHost}/admin`,
+          method: 'post',
+          data: {
+            query: `mutation($schema: String!) {
+                updateGQLSchema(input: { set: { schema: $schema } }) {
+                  gqlSchema {
+                    schema
+                  }
+                }
+              }
+              `,
+            variables: {
+              schema: schema.join(),
+            },
+          },
+        })
+      } catch (error: any) {
+        this.logger.log(error, {verbose: true, level: error})
+        this.logger.log(`There was an issue pushing schema for providers: ${allProviers.join(' | ')} to dgraph at ${dgraphHost}`, {level: 'error'})
+        this.exit()
+      }
+    }
     for (const provider of allProviers) {
       this.logger.log(`Beginning SCAN for ${provider}`)
       const client = await this.getProviderClient(provider)
@@ -223,22 +211,24 @@ Lets scan your AWS resources!
         const {mutation} = getService(name)
         const connectedData = data.map((service: any) => getConnectedEntity(service, result, opts))
         console.log(connectedData)
-        // const reqPromise = axios({
-        //   url: `${dgraphHost}/graphql`,
-        //   method: 'post',
-        //   data: {
-        //     query: mutation,
-        //     variables: {
-        //       input: connectedData,
-        //     },
-        //   },
-        // }).then(res => {
-        //   console.log('AXIOS RESPONSE')
-        //   console.log(JSON.stringify(res.data))
-        // })
-        // promises.push(reqPromise)
+        if (dgraphRunning) {
+          const axiosPromise = axios({
+            url: `${dgraphHost}/graphql`,
+            method: 'post',
+            data: {
+              query: mutation,
+              variables: {
+                input: connectedData,
+              },
+            },
+          }).then(res => {
+            if (res.data) {
+              this.logger.log(res.data)
+            }
+          })
+          promises.push(axiosPromise)
+        }
       }
-      // await Promise.all(promises)
     }
     await Promise.all(promises)
     this.logger.log(`Your data for ${allProviers.join(' | ')} is now being served at ${chalk.underline.green(dgraphHost)}`, {level: 'success'})

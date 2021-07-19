@@ -1,7 +1,8 @@
 import Command, {flags} from '@oclif/command'
-import {Input} from '@oclif/parser';
+import {Input} from '@oclif/parser'
 import CloudGraph, {Opts} from 'cloud-graph-sdk'
 import {cosmiconfigSync} from 'cosmiconfig'
+import axios from 'axios'
 import Manager from '../manager'
 
 const inquirer = require('inquirer')
@@ -27,6 +28,8 @@ export default abstract class BaseCommand extends Command {
     debug: flags.boolean(),
     // devMode flag
     dev: flags.boolean(),
+    // dgraph host
+    dgraph: flags.string({char: 'd'}),
   }
 
   static strict = false;
@@ -37,6 +40,40 @@ export default abstract class BaseCommand extends Command {
     // do some initialization
     const {flags: {debug, dev: devMode}} = this.parse(this.constructor as Input<{debug: boolean; dev: boolean}>)
     this.logger = new CloudGraph.Logger(debug)
+  }
+
+  getDgraphHost() {
+    const {flags: {dgraph: dgraphHost}} = this.parse(this.constructor as Input<{debug: boolean; dev: boolean; dgraph: boolean}>)
+    if (dgraphHost) {
+      return dgraphHost
+    }
+    if (process.env.DGRAPH_HOST) {
+      return process.env.DGRAPH_HOST
+    }
+    const config = this.getCGConfig('cloudGraph')
+    if (config && config.dgraphHost) {
+      return config.dgraphHost
+    }
+    return 'http://localhost:8080'
+  }
+
+  async dgraphHealthCheck() {
+    const host = this.getDgraphHost()
+    this.logger.log(`running dgraph health check at ${host}`)
+    try {
+      await axios({
+        url: `${host}/health?all`,
+        method: 'post',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      return true
+    } catch (error: any) {
+      this.logger.log(`dgraph at ${host} failed health check. Is dgraph running?`, {level: 'error'})
+      this.logger.log(error, {level: 'error'})
+      return false
+    }
   }
 
   async getProviderClient(provider: string) {
