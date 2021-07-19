@@ -1,6 +1,4 @@
 /* eslint-disable no-console */
-import {flags} from '@oclif/command'
-import axios from 'axios'
 import {Opts} from 'cloud-graph-sdk'
 
 import Command from './base'
@@ -35,9 +33,8 @@ Lets scan your AWS resources!
     let allProviers = argv
 
     // Run dgraph health check
-    const storageRunning = await this.storageEngine.healthCheck()
-    console.log('STORAGE RUNNING CHECK')
-    console.log(storageRunning)
+    const storageEngine = this.getStorageEngine()
+    const storageRunning = await storageEngine.healthCheck()
     /**
      * Handle 2 methods of scanning, either for explicitly passed providers OR
      * try to scan for all providers found within the config file
@@ -71,7 +68,7 @@ Lets scan your AWS resources!
       const {
         getSchema,
       } = client
-      const providerSchema: any[] = getSchema(opts)
+      const providerSchema: any[] = getSchema()
       schema.push(...providerSchema)
       fileUtils.writeGraphqlSchemaToFile(providerSchema, provider)
     }
@@ -81,7 +78,7 @@ Lets scan your AWS resources!
     // Push schema to dgraph if dgraph is running
     if (storageRunning) {
       try {
-        await this.storageEngine.setSchema(schema)
+        await storageEngine.setSchema(schema)
       } catch (error: any) {
         this.logger.log(error, {verbose: true, level: error})
         this.logger.log(`There was an issue pushing schema for providers: ${allProviers.join(' | ')} to dgraph at ${this.storageEngine.host}`, {level: 'error'})
@@ -196,9 +193,8 @@ Lets scan your AWS resources!
         const {name, data} = entity
         const {mutation} = getService(name)
         const connectedData = data.map((service: any) => getConnectedEntity(service, result, opts))
-        console.log(connectedData)
         if (storageRunning) {
-          const axiosPromise = this.storageEngine.push({
+          const axiosPromise = storageEngine.push({
             query: mutation,
             variables: {
               input: connectedData,
@@ -209,7 +205,7 @@ Lets scan your AWS resources!
       }
     }
     await Promise.all(promises)
-    this.logger.log(`Your data for ${allProviers.join(' | ')} is now being served at ${chalk.underline.green(this.storageEngine.host)}`, {level: 'success'})
+    this.logger.log(`Your data for ${allProviers.join(' | ')} is now being served at ${chalk.underline.green(storageEngine.host)}`, {level: 'success'})
     this.exit()
   }
 }

@@ -136,14 +136,13 @@ Hi from AutoCloud! Lets setup your config
       argv,
       flags: {debug, dev: devMode},
     } = this.parse(Init)
-    const opts: Opts = {logger: this.logger, debug, devMode}
+    // const opts: Opts = {logger: this.logger, debug, devMode}
     // First determine the provider if one has not been passed in args
     // if no provider is passed, they can select from a list of offically supported providers
     let allProviders: string[] = argv
     if (allProviders.length === 0) {
       allProviders = [await this.getProvider()]
     }
-    this.logger.log(allProviders)
     const configResult: { [key: string]: Record<string, any> } = {}
     for (const provider of allProviders) {
       /**

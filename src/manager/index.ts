@@ -1,9 +1,7 @@
 import {PluginManager} from 'live-plugin-manager' // TODO: replace with homegrown solution
-import {Opts} from 'cloud-graph-sdk'
+import {Logger} from 'cloud-graph-sdk'
 
 const ora = require('ora')
-const path = require('path')
-
 export class Manager {
   constructor(config: any) {
     this.pluginManager = new PluginManager({
@@ -16,9 +14,9 @@ export class Manager {
 
   plugins: Record<string, any>
 
-  logger: any
+  logger: Logger
 
-  pluginManager: any
+  pluginManager: PluginManager
 
   devMode: boolean
 

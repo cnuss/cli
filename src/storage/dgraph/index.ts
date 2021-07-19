@@ -1,6 +1,7 @@
 import axios from 'axios'
+import {StorageEngine} from '../types'
 
-export default class DgraphEngine {
+export default class DgraphEngine implements StorageEngine {
   constructor(config: any) {
     this.connectionHost = config.host
     this.logger = config.logger
