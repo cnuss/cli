@@ -1,6 +1,8 @@
-<br />
-
-<img src="https://raw.githubusercontent.com/cloudgraphdev/cli/6682131f489f8dbeeb3c358979f7dba06fba31bb/docs/images/logo.png" width="75%" style="display: block; margin: auto"/>
+<p align="center">
+<a href="">
+<img alt="CloudGraph" width=75% src="https://github.com/cloudgraphdev/cli/raw/master/docs/images/logo.png" /> 
+</a>
+</p>
 
 <br />
 <br />
