@@ -1,6 +1,6 @@
 <p align="center">
 <a href="">
-<img alt="CloudGraph" width=75% src="https://github.com/cloudgraphdev/cli/raw/master/docs/images/logo.png" /> 
+<img alt="CloudGraph" src="https://github.com/cloudgraphdev/cli/raw/master/docs/images/logo.png" width="75%" style="display: block; margin: auto" /> 
 </a>
 </p>
 
