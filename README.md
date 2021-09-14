@@ -29,6 +29,7 @@ An instant **GraphQL** API to query your cloud infrastructure and configuration 
 * [Community](#community)
 * [Contribution Guidelines](#contribution-guidelines)
 * [Deployment Options](#deployment-options)
+* [Debugging](#debugging)
 * [Commands](#commands)
 <!-- tocstop -->
 
@@ -617,6 +618,12 @@ If you're interested in contributing to CloudGraph please check out our [Contrib
 # Deployment Options
 
 You can either run CloudGraph locally, or you can deploy it to your cloud provider of choice. Terraform modules and guides for cloud deployments are coming soon!
+
+<br />
+
+# Debugging
+
+If you encounter any errors running CloudGraph you can prepend `CG_DEBUG=5` to the beginning of your command as in, `CG_DEBUG=5 cg scan`. This will print out the verbose logs with more information that you can then use to either open a ticket or get help on Slack.
 
 <br />
 
