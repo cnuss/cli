@@ -19,7 +19,6 @@ An instant **GraphQL** API to query your cloud infrastructure and configuration 
 [![License](https://img.shields.io/npm/l/@cloudgraph/cli.svg)](https://github.com/cloudgraphdev/cli/blob/master/package.json)
 
 <!-- toc -->
-
 - [Why CloudGraph](#why-cloudgraph)
 - [How It Works](#how-it-works)
 - [Authentication](#authentication)
@@ -53,7 +52,7 @@ Note that CloudGraph requires **READ ONLY** permissions to run and as such can *
 
 <br />
 
-Under the hood, CloudGraph reaches out to your cloud provider(s), sucks up all of the configuration data, processes it, and stores a copy of this data for you in [Dgraph](https://dgraph.io/). It then exposes an endpoint at `http://localhost:8997` via a tiny node server that allows you to write GraphQL Queries against your stored data. These queries not only allow you do to anything that you would do with say, the AWS SDK/CLI, but they also allow you to run much more powerful queries as well.
+Under the hood, CloudGraph reaches out to your cloud provider(s), sucks up all of the configuration data, processes it, and stores a copy of this data for you in [Dgraph](https://dgraph.io/). It then exposes an endpoint at `http://localhost:8997` that allows you to write GraphQL Queries against your stored data. These queries not only allow you do to anything that you would do with say, the AWS SDK/CLI, but they also allow you to run much more powerful queries as well. **Note that none of your cloud's information is ever sent or stored to cloudgraph or third parties.**
 
 <br />
 
@@ -624,17 +623,16 @@ You can either run CloudGraph locally, or you can deploy it to your cloud provid
 # Commands
 
 <!-- commands -->
-
 - [`cg help [COMMAND]`](#cg-help-command)
 - [`cg init [PROVIDER]`](#cg-init-provider)
 - [`cg launch [PROVIDER]`](#cg-launch-provider)
 - [`cg load [PROVIDER]`](#cg-load-provider)
 - [`cg provider [PROVIDER]`](#cg-provider-provider)
-- [`cg provider:add [PROVIDER]`](#cg-provideradd-provider)
-- [`cg provider:install [PROVIDER]`](#cg-providerinstall-provider)
-- [`cg provider:list [PROVIDER]`](#cg-providerlist-provider)
-- [`cg provider:remove [PROVIDER]`](#cg-providerremove-provider)
-- [`cg provider:update [PROVIDER]`](#cg-providerupdate-provider)
+- [`cg provider add [PROVIDER]`](#cg-provideradd-provider)
+- [`cg provider install [PROVIDER]`](#cg-providerinstall-provider)
+- [`cg provider list [PROVIDER]`](#cg-providerlist-provider)
+- [`cg provider remove [PROVIDER]`](#cg-providerremove-provider)
+- [`cg provider update [PROVIDER]`](#cg-providerupdate-provider)
 - [`cg scan [PROVIDER]`](#cg-scan-provider)
 - [`cg serve [PROVIDER]`](#cg-serve-provider)
 
@@ -752,7 +750,7 @@ OPTIONS
 
 _See code: [src/commands/provider/index.ts](https://github.com/cloudgraphdev/cli/blob/v0.8.7/src/commands/provider/index.ts)_
 
-## `cg provider:add [PROVIDER]`
+## `cg provider add [PROVIDER]`
 
 Add new providers
 
@@ -780,7 +778,7 @@ EXAMPLES
 
 _See code: [src/commands/provider/add.ts](https://github.com/cloudgraphdev/cli/blob/v0.8.7/src/commands/provider/add.ts)_
 
-## `cg provider:install [PROVIDER]`
+## `cg provider install [PROVIDER]`
 
 Install providers based on the lock file
 
@@ -807,7 +805,7 @@ EXAMPLE
 
 _See code: [src/commands/provider/install.ts](https://github.com/cloudgraphdev/cli/blob/v0.8.7/src/commands/provider/install.ts)_
 
-## `cg provider:list [PROVIDER]`
+## `cg provider list [PROVIDER]`
 
 List currently installed providers and versions
 
@@ -837,7 +835,7 @@ EXAMPLES
 
 _See code: [src/commands/provider/list.ts](https://github.com/cloudgraphdev/cli/blob/v0.8.7/src/commands/provider/list.ts)_
 
-## `cg provider:remove [PROVIDER]`
+## `cg provider remove [PROVIDER]`
 
 Remove currently installed provider
 
@@ -950,5 +948,4 @@ EXAMPLE
 ```
 
 _See code: [src/commands/serve.ts](https://github.com/cloudgraphdev/cli/blob/v0.8.7/src/commands/serve.ts)_
-
 <!-- commandsstop -->
