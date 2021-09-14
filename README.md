@@ -52,7 +52,7 @@ Note that CloudGraph requires **READ ONLY** permissions to run and as such can *
 
 <br />
 
-Under the hood, CloudGraph reaches out to your cloud provider(s), sucks up all of the configuration data, processes it, and stores a copy of this data for you in [Dgraph](https://dgraph.io/). It then exposes an endpoint at `http://localhost:8997` that allows you to write GraphQL Queries against your stored data. These queries not only allow you do to anything that you would do with say, the AWS SDK/CLI, but they also allow you to run much more powerful queries as well. **Note that none of your cloud's information is ever sent or stored to cloudgraph or third parties.**
+Under the hood, CloudGraph reaches out to your cloud provider(s), sucks up all of the configuration data, processes it, and stores a copy of this data for you in [Dgraph](https://dgraph.io/). It then exposes an endpoint at `http://localhost:8997` that allows you to write GraphQL Queries against your stored data. These queries not only allow you do to anything that you would do with say, the AWS SDK/CLI, but they also allow you to run much more powerful queries as well. **Note that none of your cloud's information is ever sent or stored to CloudGraph or third parties.**
 
 <br />
 
