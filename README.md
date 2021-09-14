@@ -623,7 +623,7 @@ You can either run CloudGraph locally, or you can deploy it to your cloud provid
 
 # Debugging
 
-If you encounter any errors running CloudGraph you can prepend `CG_DEBUG=5` to the beginning of your command as in, `CG_DEBUG=5 cg scan`. This will print out the verbose logs with more information that you can then use to either open a ticket or get help on Slack.
+If you encounter any errors running CloudGraph you can prepend `CG_DEBUG=5` to the beginning of your command as in, `CG_DEBUG=5 cg scan`. This will print out the verbose logs with more information that you can then use to either open a issue on GitHub or get help on Slack.
 
 <br />
 
