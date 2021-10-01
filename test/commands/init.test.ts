@@ -36,7 +36,7 @@ import { RunInitCommandTestType } from '../helpers/types'
 
 initTestSuite({ libsToMock: ['inquirer'] })
 
-xdescribe('Init command', () => {
+describe('Init command', () => {
   let InitCommand: InitCommandClass
 
   describe('Configuration prompts initial check', () => {
